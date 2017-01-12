@@ -9,8 +9,6 @@ runtime: shiny
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
-options(DT.fillContainer = FALSE)
-options(DT.autoHideNavigation = FALSE)
 
 library(dplyr)
 library(DT)
@@ -18,6 +16,7 @@ library(ecosscraper)
 library(flexdashboard)
 library(ggplot2)
 library(ggthemes)
+library(plotly)
 library(shiny)
 
 load("TECP_table.rda")
@@ -30,17 +29,17 @@ listed <- filter_listed(TECP_table) %>% filter_domestic()
 listed$First_Listed <- as.Date(listed$First_Listed, format = "%b %d, %Y")
 
 list_cnt <- left_join(listed, counties_table, by = "Scientific_Name")
-fiveyr <- left_join(list_cnt, fiveyr_table, by = c("Scientific_Name" = "Species"))
+fiveyr <- full_join(list_cnt, fiveyr_table, by = c("Scientific_Name" = "Species"))
 fiveyr$Date <- as.Date(fiveyr$Date)
-fiveyr <- filter(fiveyr, fiveyr$Date < as.Date("2017-01-31"))
+fiveyr <- filter(fiveyr, fiveyr$Date < as.Date("2017-01-31") | is.na(fiveyr$Date))
 
-filter_state <- function(state) {
+filter_state <- function(df, state) {
   if(state != "All") {
-    tmp <- filter(fiveyr, State == state)
+    tmp <- filter(df, State == state)
   } else {
-    tmp <- fiveyr
+    tmp <- df
   }
-  tmp <- distinct(tmp, Scientific_Name, State, .keep_all = TRUE)
+  tmp <- distinct(tmp, Scientific_Name, .keep_all = TRUE)
   tmp <- select(tmp, Common_Name, Scientific_Name, First_Listed,
                 Species_Group, Federal_Listing_Status, Date, Title, 
                 Doc_Link)
@@ -62,8 +61,8 @@ filter_taxon <- function(df, taxon) {
   return(df)
 }
 
-filter_need5yr <- function(dat) {
-  res <- filter(dat, First_Listed < THRES)
+filter_need5yr <- function(df) {
+  res <- filter(df, First_Listed < THRES)
   return(res)
 }
 ```
@@ -72,7 +71,7 @@ Inputs {.sidebar}
 -----------------------------------------------------------------------
 
 ```{r selector, echo = FALSE}
-states <- unique(list_cnt$State)
+states <- sort(unique(list_cnt$State))
 states <- c("All", states)
 inputPanel(
   selectInput("sel_state", 
@@ -81,7 +80,7 @@ inputPanel(
               selected = "All")
 )
 
-taxon <- unique(list_cnt$Species_Group)
+taxon <- sort(unique(list_cnt$Species_Group))
 taxon <- c("All", taxon)
 inputPanel(
   selectInput("sel_taxon", 
@@ -90,27 +89,25 @@ inputPanel(
               selected = "All")
 )
 
-
-cur_dat <- reactive(filter_state(input$sel_state) %>% 
+cur_dat <- reactive(fiveyr %>% 
+                      filter_state(input$sel_state) %>%
                       filter_taxon(input$sel_taxon))
 ```
 
 The [U.S. Endangered Species Act](https://www.fws.gov/endangered/laws-policies/)
-directs the Secretaries of Interior and Commerce to provide a review of the status
-of listed species once every five years. Because of budget and personnel
-constraints, these five-year reviews are often behind schedule. This is a simple
-tool to evaluate the timeliness of five-year reviews. 
+requires a review of the status of listed species once every five years. Because
+of budget and personnel constraints, these five-year reviews are often behind 
+schedule. This is a simple tool to view the timeliness of five-year reviews. 
 
 `r hr()`
 
 ```{r note, echo = FALSE}
 helpText("Note: To ensure this app loads quickly, we use data collected on 
 17 Dec 2016 rather than real-time  scraping of the Fish and Wildlife Service's 
-website. We will update the data on a regular basis and change the preceding 
-date.")
+website. We will update the data on a regular basis.")
 ```
 
-Column {data-width=500}
+Column {data-width=400}
 -----------------------------------------------------------------------
 
 ### Timeliness
@@ -118,22 +115,24 @@ Column {data-width=500}
 ```{r timely, echo = FALSE}
 df <- reactive({
   need_5yr <- filter_need5yr(cur_dat())
-  n_ontime <- sum(need_5yr$Review_Date >= as.Date("2012-01-01"))
-  n_pastdue <- sum(need_5yr$Review_Date < as.Date("2012-01-01"))
+  n_ontime <- sum(need_5yr$Review_Date >= THRES, na.rm = TRUE)
+  n_pastdue <- sum(need_5yr$Review_Date < THRES | is.na(need_5yr$Review_Date),
+                   na.rm = TRUE)
   n_notdue <- dim(cur_dat())[1] - dim(need_5yr)[1]
   
   data.frame(category = c("On-time", "Past due", "Not due"),
              count = c(n_ontime, n_pastdue, n_notdue))
 })
 
-renderPlot({
+renderPlotly({
   ggplot(df(), aes(category, count)) +
          geom_bar(stat = "identity") +
          theme_hc()
+  ggplotly()
 })
 ```
 
-### Histogram
+### Distribution of 5y Review Dates
 
 ```{r histogram, echo = FALSE}
 renderPlot({
@@ -146,7 +145,7 @@ renderPlot({
 })
 ```
 
-Column {data-width=500}
+Column {data-width=600}
 -----------------------------------------------------------------------
 
 ### Data Table
