@@ -159,7 +159,6 @@ DT::renderDataTable({
                   pageLength = 15,
                   lengthMenu = c(5, 10, 15, 20))
                 )
-  
 })
 ```
 
