@@ -1,0 +1,65 @@
+---
+title: "ESA five-year reviews"
+author: "Jacob Malcom, Defenders of Wildlife"
+date: "1/11/2017"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(ecosscraper)
+library(ggplot2)
+library(ggthemes)
+
+load("TECP_table.rda")
+load("fiveyr_table.rda")
+load("counties_table_2016-12-17.rda")
+
+listed <- filter_listed(TECP_table) %>% filter_domestic()
+list_cnt <- left_join(listed, counties_table, by = "Scientific")
+```
+
+The [U.S. Endangered Species Act](https://www.fws.gov/endangered/laws-policies/)
+directs the Secretaries of Interior and Commerce to provide a review of the status
+of listed species once every five years. Because of budget and personnel
+constraints, these five-year reviews are often behind schedule. This is a simple
+tool to evaluate the timeliness of five-year reviews. (Note: To ensure this app 
+loads quickly, we use data collected on 17 Dec 2016 rather than real-time 
+scraping of the Fish and Wildlife Service's website. We will update the data on
+a regular basis and change the preceding date.)
+
+
+```{r selectors, echo=FALSE}
+renderPlot({
+  hist(faithful$eruptions, probability = TRUE, breaks = as.numeric(input$n_breaks),
+       xlab = "Duration (minutes)", main = "Geyser eruption duration")
+  
+  dens <- density(faithful$eruptions, adjust = input$bw_adjust)
+  lines(dens, col = "blue")
+})
+```
+
+## Embedded Application
+
+It's also possible to embed an entire Shiny application within an R Markdown document using the `shinyAppDir` function. This example embeds a Shiny application located in another directory:
+
+```{r tabsets, echo=FALSE}
+shinyAppDir(
+  system.file("examples/06_tabsets", package = "shiny"),
+  options = list(
+    width = "100%", height = 550
+  )
+)
+```
+
+Note the use of the `height` parameter to determine how much vertical space the embedded application should occupy.
+
+You can also use the `shinyApp` function to define an application inline rather then in an external directory.
+
+In all of R code chunks above the `echo = FALSE` attribute is used. This is to prevent the R code within the chunk from rendering in the document alongside the Shiny components.
+
+
+

@@ -1,0 +1,166 @@
+---
+title: "ESA five-year reviews"
+author: "Jacob Malcom, Defenders of Wildlife"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: yeti
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+options(DT.fillContainer = FALSE)
+options(DT.autoHideNavigation = FALSE)
+
+library(dplyr)
+library(DT)
+library(ecosscraper)
+library(flexdashboard)
+library(ggplot2)
+library(ggthemes)
+library(shiny)
+
+load("TECP_table.rda")
+load("fiveyr_table.rda")
+load("counties_table_2016-12-17.rda")
+
+THRES <- Sys.Date() - 365*5
+
+listed <- filter_listed(TECP_table) %>% filter_domestic()
+listed$First_Listed <- as.Date(listed$First_Listed, format = "%b %d, %Y")
+
+list_cnt <- left_join(listed, counties_table, by = "Scientific_Name")
+fiveyr <- left_join(list_cnt, fiveyr_table, by = c("Scientific_Name" = "Species"))
+fiveyr$Date <- as.Date(fiveyr$Date)
+fiveyr <- filter(fiveyr, fiveyr$Date < as.Date("2017-01-31"))
+
+filter_state <- function(state) {
+  if(state != "All") {
+    tmp <- filter(fiveyr, State == state)
+  } else {
+    tmp <- fiveyr
+  }
+  tmp <- distinct(tmp, Scientific_Name, State, .keep_all = TRUE)
+  tmp <- select(tmp, Common_Name, Scientific_Name, First_Listed,
+                Species_Group, Federal_Listing_Status, Date, Title, 
+                Doc_Link)
+  names(tmp) <- c("Common_Name",
+                  "Scientific_Name",
+                  "First_Listed",
+                  "Taxon_Group",
+                  "Listing_Status",
+                  "Review_Date",
+                  "Doc_Title",
+                  "Doc_Link")
+  return(tmp)
+}
+
+filter_taxon <- function(df, taxon) {
+  if(taxon != "All") {
+    return(filter(df, Taxon_Group == taxon))
+  }
+  return(df)
+}
+
+filter_need5yr <- function(dat) {
+  res <- filter(dat, First_Listed < THRES)
+  return(res)
+}
+```
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+```{r selector, echo = FALSE}
+states <- unique(list_cnt$State)
+states <- c("All", states)
+inputPanel(
+  selectInput("sel_state", 
+              label = "State",
+              choices = states, 
+              selected = "All")
+)
+
+taxon <- unique(list_cnt$Species_Group)
+taxon <- c("All", taxon)
+inputPanel(
+  selectInput("sel_taxon", 
+              label = "Taxonomic Group",
+              choices = taxon, 
+              selected = "All")
+)
+
+
+cur_dat <- reactive(filter_state(input$sel_state) %>% 
+                      filter_taxon(input$sel_taxon))
+```
+
+The [U.S. Endangered Species Act](https://www.fws.gov/endangered/laws-policies/)
+directs the Secretaries of Interior and Commerce to provide a review of the status
+of listed species once every five years. Because of budget and personnel
+constraints, these five-year reviews are often behind schedule. This is a simple
+tool to evaluate the timeliness of five-year reviews. 
+
+`r hr()`
+
+```{r note, echo = FALSE}
+helpText("Note: To ensure this app loads quickly, we use data collected on 
+17 Dec 2016 rather than real-time  scraping of the Fish and Wildlife Service's 
+website. We will update the data on a regular basis and change the preceding 
+date.")
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Timeliness
+
+```{r timely, echo = FALSE}
+df <- reactive({
+  need_5yr <- filter_need5yr(cur_dat())
+  n_ontime <- sum(need_5yr$Review_Date >= as.Date("2012-01-01"))
+  n_pastdue <- sum(need_5yr$Review_Date < as.Date("2012-01-01"))
+  n_notdue <- dim(cur_dat())[1] - dim(need_5yr)[1]
+  
+  data.frame(category = c("On-time", "Past due", "Not due"),
+             count = c(n_ontime, n_pastdue, n_notdue))
+})
+
+renderPlot({
+  ggplot(df(), aes(category, count)) +
+         geom_bar(stat = "identity") +
+         theme_hc()
+})
+```
+
+### Histogram
+
+```{r histogram, echo = FALSE}
+renderPlot({
+  ggplot(cur_dat(), aes(x = cur_dat()$Review_Date)) +
+    geom_histogram(bins = 12) +
+    geom_vline(xintercept = as.numeric(as.Date("2012-01-01")), colour = "red") +
+    labs(x = "Review Date",
+         y = "# of five-year reviews") +
+    theme_hc()
+})
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Data Table
+
+```{r datatable, echo = FALSE}
+DT::renderDataTable({
+  minitab <- select(cur_dat(), Scientific_Name, Common_Name, Review_Date)
+  DT::datatable(minitab,
+                options = list(
+                  rownames = FALSE,
+                  pageLength = 15,
+                  lengthMenu = c(5, 10, 15, 20))
+                )
+  
+})
+```
+
