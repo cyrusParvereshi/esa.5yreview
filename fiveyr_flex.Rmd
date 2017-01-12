@@ -132,6 +132,8 @@ renderPlotly({
 })
 ```
 
+> The timeliness of species' 5-year reviews as of Jan, 2017.
+
 ### Distribution of 5y Review Dates
 
 ```{r histogram, echo = FALSE}
@@ -145,6 +147,9 @@ renderPlot({
 })
 ```
 
+> The red line marks 01 Jan 2012, approx. five years ago.
+
+
 Column {data-width=600}
 -----------------------------------------------------------------------
 
@@ -152,13 +157,17 @@ Column {data-width=600}
 
 ```{r datatable, echo = FALSE}
 DT::renderDataTable({
-  minitab <- select(cur_dat(), Scientific_Name, Common_Name, Review_Date)
+  minitab <- select(cur_dat(), 
+                    Scientific_Name, Common_Name, 
+                    First_Listed, Review_Date)
   DT::datatable(minitab,
                 options = list(
                   rownames = FALSE,
-                  pageLength = 15,
-                  lengthMenu = c(5, 10, 15, 20))
+                  pageLength = 12,
+                  lengthMenu = c(10, 12, 15, 20))
                 )
 })
 ```
+
+> "Review_Date" is the date of the most recent 5-year review on [ECOS](http://ecos.fws.gov). If the "First_Listed" date is less than 5 years ago, then a species does not need a 5-year review. A missing "Review_Date" means there is no 5-year review on ECOS.
 
