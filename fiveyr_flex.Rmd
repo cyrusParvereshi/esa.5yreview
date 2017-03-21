@@ -125,10 +125,12 @@ df <- reactive({
 })
 
 renderPlotly({
-  ggplot(df(), aes(category, count)) +
+# renderPlot({
+  plt <- ggplot(df(), aes(category, count)) +
          geom_bar(stat = "identity") +
          theme_hc()
-  ggplotly()
+  # plt
+  ggplotly(plt)
 })
 ```
 
