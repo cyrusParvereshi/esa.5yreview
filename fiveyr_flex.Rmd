@@ -1,9 +1,15 @@
 ---
 title: "ESA five-year reviews"
-author: "Jacob Malcom, Defenders of Wildlife"
 output: 
   flexdashboard::flex_dashboard:
-    theme: yeti
+    css: custom.css
+    social: menu
+    df_print: paged
+    navbar:
+    - {title: "CCI", align: left, href: "https://cci-dev.org"}
+    - {title: "Defenders", align: left, href: "http://www.defenders.org"}
+    - {title: "", icon: "fa-question-circle fa-lg", align: right, href: "mailto:esa@defenders.org?subject=Five-year reviews app"}
+    - {title: "", icon: "fa-github fa-lg", align: right, href: "https://github.com/Defenders-ESC/"}
 runtime: shiny
 ---
 
@@ -107,6 +113,12 @@ helpText("Note: To ensure this app loads quickly, we use data collected on
 website. We will update the data on a regular basis.")
 ```
 
+`r hr()`
+
+[Defenders of Wildlife](http://www.defenders.org)
+
+[Contact us](mailto:esa@defenders.org)
+
 Column {data-width=400}
 -----------------------------------------------------------------------
 
@@ -124,13 +136,25 @@ df <- reactive({
              count = c(n_ontime, n_pastdue, n_notdue))
 })
 
+# reactive( saveRDS(df(), "~/Downloads/fiveyr_data.rds") )
+
+t <- list(
+  family = "'Open Sans'",
+  size = 12,
+  color = 'black'
+)
+
 renderPlotly({
-# renderPlot({
-  plt <- ggplot(df(), aes(category, count)) +
-         geom_bar(stat = "identity") +
-         theme_hc()
-  # plt
-  ggplotly(plt)
+  df() %>%
+    plot_ly(
+      x = df()$category,
+      y = df()$count,
+      type = "bar",
+      marker = list(
+        color = "#595959"
+      )
+    ) %>%
+    layout(yaxis = list(title="# five-yr. reviews"))
 })
 ```
 
@@ -139,13 +163,39 @@ renderPlotly({
 ### Distribution of 5y Review Dates
 
 ```{r histogram, echo = FALSE}
-renderPlot({
-  ggplot(cur_dat(), aes(x = cur_dat()$Review_Date)) +
-    geom_histogram(bins = 12) +
-    geom_vline(xintercept = as.numeric(as.Date("2012-01-01")), colour = "red") +
-    labs(x = "Review Date",
-         y = "# of five-year reviews") +
-    theme_hc()
+# renderPlot({
+#   ggplot(cur_dat(), aes(x = cur_dat()$Review_Date)) +
+#     geom_histogram(bins = 12) +
+#     geom_vline(xintercept = as.numeric(as.Date("2012-01-01")), colour = "red") +
+#     labs(x = "Review Date",
+#          y = "# of five-year reviews") +
+#     theme_hc()
+# })
+
+renderPlotly({
+  brks <- hist(cur_dat()$Review_Date, breaks = 12, plot = FALSE)
+  # observe(print(brks))
+  
+  line <- list(
+    type = "line",
+    line = list(color = "red"),
+    x0 = as.Date("2012-01-01"),
+    x1 = as.Date("2012-01-01"),
+    y0 = 0,
+    y1 = max(brks$counts)
+  )
+
+  plot_ly(
+    cur_dat(),
+    x = cur_dat()$Review_Date,
+    type = "histogram",
+    marker = list(
+      color = "#595959"
+    ),
+    nbinsx = 12
+  ) %>%
+  layout(yaxis = list(title="# five-yr. reviews"),
+         shapes = line)
 })
 ```
 
@@ -165,7 +215,7 @@ DT::renderDataTable({
   DT::datatable(minitab,
                 options = list(
                   rownames = FALSE,
-                  pageLength = 12,
+                  pageLength = 10,
                   lengthMenu = c(10, 12, 15, 20))
                 )
 })
