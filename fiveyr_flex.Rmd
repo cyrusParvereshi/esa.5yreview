@@ -1,6 +1,6 @@
 ---
 title: "ESA five-year reviews"
-output: 
+output:
   flexdashboard::flex_dashboard:
     css: custom.css
     social: menu
@@ -14,6 +14,8 @@ runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
+setwd("/Users/jacobmalcom/Work/Repos/Defenders/apps/esa.5yreview")
+
 knitr::opts_chunk$set(echo = FALSE)
 
 library(dplyr)
@@ -47,7 +49,7 @@ filter_state <- function(df, state) {
   }
   tmp <- distinct(tmp, Scientific_Name, .keep_all = TRUE)
   tmp <- select(tmp, Common_Name, Scientific_Name, First_Listed,
-                Species_Group, Federal_Listing_Status, Date, Title, 
+                Species_Group, Federal_Listing_Status, Date, Title,
                 Doc_Link)
   names(tmp) <- c("Common_Name",
                   "Scientific_Name",
@@ -80,36 +82,36 @@ Inputs {.sidebar}
 states <- sort(unique(list_cnt$State))
 states <- c("All", states)
 inputPanel(
-  selectInput("sel_state", 
+  selectInput("sel_state",
               label = "State",
-              choices = states, 
+              choices = states,
               selected = "All")
 )
 
 taxon <- sort(unique(list_cnt$Species_Group))
 taxon <- c("All", taxon)
 inputPanel(
-  selectInput("sel_taxon", 
+  selectInput("sel_taxon",
               label = "Taxonomic Group",
-              choices = taxon, 
+              choices = taxon,
               selected = "All")
 )
 
-cur_dat <- reactive(fiveyr %>% 
+cur_dat <- reactive(fiveyr %>%
                       filter_state(input$sel_state) %>%
                       filter_taxon(input$sel_taxon))
 ```
 
 The [U.S. Endangered Species Act](https://www.fws.gov/endangered/laws-policies/)
 requires a review of the status of listed species once every five years. Because
-of budget and personnel constraints, these five-year reviews are often behind 
-schedule. This is a simple tool to view the timeliness of five-year reviews. 
+of budget and personnel constraints, these five-year reviews are often behind
+schedule. This is a simple tool to view the timeliness of five-year reviews.
 
 `r hr()`
 
 ```{r note, echo = FALSE}
-helpText("Note: To ensure this app loads quickly, we use data collected on 
-17 Dec 2016 rather than real-time  scraping of the Fish and Wildlife Service's 
+helpText("Note: To ensure this app loads quickly, we use data collected on
+17 Dec 2016 rather than real-time  scraping of the Fish and Wildlife Service's
 website. We will update the data on a regular basis.")
 ```
 
@@ -131,7 +133,7 @@ df <- reactive({
   n_pastdue <- sum(need_5yr$Review_Date < THRES | is.na(need_5yr$Review_Date),
                    na.rm = TRUE)
   n_notdue <- dim(cur_dat())[1] - dim(need_5yr)[1]
-  
+
   data.frame(category = c("On-time", "Past due", "Not due"),
              count = c(n_ontime, n_pastdue, n_notdue))
 })
@@ -175,7 +177,7 @@ renderPlotly({
 renderPlotly({
   brks <- hist(cur_dat()$Review_Date, breaks = 12, plot = FALSE)
   # observe(print(brks))
-  
+
   line <- list(
     type = "line",
     line = list(color = "red"),
@@ -209,8 +211,8 @@ Column {data-width=600}
 
 ```{r datatable, echo = FALSE}
 DT::renderDataTable({
-  minitab <- select(cur_dat(), 
-                    Scientific_Name, Common_Name, 
+  minitab <- select(cur_dat(),
+                    Scientific_Name, Common_Name,
                     First_Listed, Review_Date)
   DT::datatable(minitab,
                 options = list(
@@ -222,4 +224,3 @@ DT::renderDataTable({
 ```
 
 > "Review_Date" is the date of the most recent 5-year review on [ECOS](http://ecos.fws.gov). If the "First_Listed" date is less than 5 years ago, then a species does not need a 5-year review. A missing "Review_Date" means there is no 5-year review on ECOS.
-

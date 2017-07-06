@@ -1,0 +1,12 @@
+library(dplyr)
+library(DT)
+library(ecosscraper)
+library(flexdashboard)
+library(ggplot2)
+library(ggthemes)
+library(plotly)
+library(shiny)
+
+load("TECP_table.rda")
+load("fiveyr_table.rda")
+load("counties_table_2016-12-17.rda")
