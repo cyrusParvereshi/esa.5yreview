@@ -75,3 +75,8 @@ a:visited {
   border-bottom-left-radius: 2px;
   color: #212121;
 }
+
+.dashboard-page-wrapper {
+  margin-top: 55px;
+  padding-bottom: 55px;
+}
