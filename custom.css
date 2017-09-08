@@ -76,7 +76,13 @@ a:visited {
   color: #212121;
 }
 
-.dashboard-page-wrapper {
-  margin-top: 55px;
-  padding-bottom: 55px;
+/* .dashboard-page-wrapper {
+  -webkit-padding-before: 55px;
+} */
+
+@media screen and (-webkit-min-device-pixel-ratio:0)
+  and (min-resolution:.001dpcm) {
+    .dashboard-page-wrapper {
+      padding-top: 55px;
+    }
 }
