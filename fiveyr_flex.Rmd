@@ -14,8 +14,6 @@ runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
-setwd("/Users/jacobmalcom/Work/Repos/Defenders/apps/esa.5yreview")
-
 knitr::opts_chunk$set(echo = FALSE)
 
 library(dplyr)
@@ -25,15 +23,37 @@ library(flexdashboard)
 library(ggplot2)
 library(ggthemes)
 library(plotly)
+library(RPostgreSQL)
+library(secret)
 library(shiny)
 
 load("TECP_table.rda")
+TECP_names <- names(TECP_table)
+
+con <- dbConnect(
+  dbDriver("PostgreSQL"),
+  dbname = "postgres",
+  user = ESC_DB_USR,
+  password = get_secret(ESC_DB_PW, key = priv_key, vault),
+  host = ESC_DB
+)
+
+TECP_table <- dbSendQuery(con, "select * from tecp_table") %>%
+  dbFetch()
+names(TECP_table) <- TECP_names
+
 load("fiveyr_table.rda")
 load("counties_table_2016-12-17.rda")
 
 THRES <- Sys.Date() - 365*5
 
-listed <- filter_listed(TECP_table) %>% filter_domestic()
+listed <- filter(
+  TECP_table, 
+  Federal_Listing_Status != "Candidate" &
+  Federal_Listing_Status != "Proposed Endangered" &
+  Federal_Listing_Status != "Proposed Threatened" &
+  Federal_Listing_Status != "Experimental Population, Non-Essential") %>%
+  filter(U.S._or_ForeignListed != "Foreign")
 listed$First_Listed <- as.Date(listed$First_Listed, format = "%b %d, %Y")
 
 list_cnt <- left_join(listed, counties_table, by = "Scientific_Name")
